@@ -3,7 +3,7 @@
     <h2 class="text-xl font-semibold">Fondo Monetario</h2>
     <button
       class="px-3 py-2 rounded-md bg-sky-600 hover:bg-sky-500 text-sm font-medium"
-      (click)="startCreate()"
+      (click)="openCreateForm()"
     >
       Nuevo fondo
     </button>
@@ -11,24 +11,35 @@
 
   @if (isFormOpen()) {
   <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
-    <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-3 gap-4" (ngSubmit)="save()">
+    <form
+      [formGroup]="fundForm"
+      class="grid grid-cols-1 md:grid-cols-3 gap-4"
+      (ngSubmit)="submitForm()"
+    >
+      <!-- Nombre -->
       <div>
         <label class="block text-sm text-slate-300 mb-1">Nombre</label>
         <input
           class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
           formControlName="nombre"
+          placeholder="Ej: Cuenta corriente, Caja chica"
         />
       </div>
+
+      <!-- Tipo (envía 0/1 al backend) -->
       <div>
         <label class="block text-sm text-slate-300 mb-1">Tipo</label>
         <select
           class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
           formControlName="tipoFondo"
         >
-          <option value="CajaMenuda">Caja Menuda</option>
-          <option value="CuentaBancaria">Cuenta Bancaria</option>
+          @for (opt of tipoFondoOptions; track opt.value) {
+          <option [ngValue]="opt.value">{{ opt.label }}</option>
+          }
         </select>
       </div>
+
+      <!-- Número de cuenta -->
       <div>
         <label class="block text-sm text-slate-300 mb-1">Nro. Cuenta (opcional)</label>
         <input
@@ -36,6 +47,8 @@
           formControlName="numeroCuenta"
         />
       </div>
+
+      <!-- Descripción -->
       <div class="md:col-span-3">
         <label class="block text-sm text-slate-300 mb-1">Descripción</label>
         <input
@@ -43,23 +56,26 @@
           formControlName="descripcion"
         />
       </div>
+
+      <!-- Acciones -->
       <div class="md:col-span-3 flex items-center gap-2">
         <button
           type="submit"
-          [disabled]="form.invalid || saving()"
+          [disabled]="fundForm.invalid || isSaving()"
           class="px-3 py-2 rounded-md bg-emerald-600"
         >
-          Guardar
+          {{ editingFundId() ? 'Guardar cambios' : 'Guardar' }}
         </button>
-        <button type="button" class="px-3 py-2 rounded-md bg-slate-800" (click)="cancel()">
+        <button type="button" class="px-3 py-2 rounded-md bg-slate-800" (click)="cancelForm()">
           Cancelar
         </button>
-        @if (saving()) { <span class="text-xs text-slate-400">Guardando…</span> }
+        @if (isSaving()) { <span class="text-xs text-slate-400">Guardando…</span> }
       </div>
     </form>
   </div>
   }
 
+  <!-- Tabla -->
   <div class="rounded-lg border border-slate-800 overflow-hidden">
     <table class="w-full text-sm">
       <thead class="bg-slate-900/70 text-slate-300 border-b border-slate-800">
@@ -72,28 +88,33 @@
         </tr>
       </thead>
       <tbody>
-        @if (loading()) {
+        @if (isLoading()) {
         <tr>
           <td class="px-4 py-4" colspan="5">Cargando…</td>
         </tr>
-        } @else if (items().length === 0) {
+        } @else if (monetaryFunds()?.length === 0) {
         <tr>
           <td class="px-4 py-4 text-slate-400" colspan="5">Sin datos</td>
         </tr>
-        } @else { @for (f of items(); track f.id) {
+        } @else { @for (f of monetaryFunds(); track f.id) {
         <tr class="border-b border-slate-800">
           <td class="px-4 py-2">{{ f.nombre }}</td>
-          <td class="px-4 py-2">{{ f.tipoFondo }}</td>
+          <td class="px-4 py-2">
+            {{ f.tipoFondo === 'CuentaBancaria' ? 'Cuenta Bancaria' : 'Caja Menuda' }}
+          </td>
           <td class="px-4 py-2 text-slate-400">{{ f.numeroCuenta || '—' }}</td>
           <td class="px-4 py-2 text-slate-400">{{ f.descripcion || '—' }}</td>
           <td class="px-4 py-2">
             <div class="flex items-center gap-2 justify-end">
-              <button class="px-2 py-1 rounded-md bg-sky-700 hover:bg-sky-600" (click)="edit(f)">
+              <button
+                class="px-2 py-1 rounded-md bg-sky-700 hover:bg-sky-600"
+                (click)="openEditForm(f)"
+              >
                 Editar
               </button>
               <button
                 class="px-2 py-1 rounded-md bg-rose-700 hover:bg-rose-600"
-                (click)="remove(f)"
+                (click)="deleteFund(f)"
               >
                 Eliminar
               </button>

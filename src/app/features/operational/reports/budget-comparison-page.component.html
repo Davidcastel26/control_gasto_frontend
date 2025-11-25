@@ -4,7 +4,8 @@
     <p class="text-sm text-slate-400">Consulta por rango de fechas y (opcional) usuario.</p>
   </header>
 
-  <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-4 gap-4" (ngSubmit)="load()">
+  <!-- Filtros -->
+  <form [formGroup]="filterForm" class="grid grid-cols-1 md:grid-cols-5 gap-4" (ngSubmit)="load()">
     <div>
       <label class="block text-sm mb-1">Desde</label>
       <input
@@ -37,13 +38,57 @@
       <button
         type="submit"
         class="px-3 py-2 rounded-md bg-sky-600 hover:bg-sky-500 text-sm font-medium"
-        [disabled]="form.invalid || loading()"
+        [disabled]="filterForm.invalid || isLoading()"
       >
         Consultar
       </button>
     </div>
+
+    @if (isLoading()) {
+    <div class="flex items-end">
+      <span class="text-xs text-slate-400">Cargando…</span>
+    </div>
+    }
   </form>
 
+  <!-- KPIs -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+      <p class="text-xs text-slate-400">Presupuestado</p>
+      <p class="text-2xl font-semibold text-sky-300">
+        {{ totalBudgeted() | number : '1.2-2' }}
+      </p>
+    </div>
+    <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+      <p class="text-xs text-slate-400">Ejecutado</p>
+      <p class="text-2xl font-semibold text-emerald-300">
+        {{ totalExecuted() | number : '1.2-2' }}
+      </p>
+    </div>
+    <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+      <p class="text-xs text-slate-400">Diferencia (Pres - Eje)</p>
+      <p
+        class="text-2xl font-semibold"
+        [ngClass]="totalDelta() >= 0 ? 'text-sky-300' : 'text-rose-300'"
+      >
+        {{ totalDelta() | number : '1.2-2' }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Mensaje de error -->
+  @if (loadErrorMessage()) {
+  <div class="rounded-md border border-rose-800 bg-rose-900/30 px-4 py-3 text-sm text-rose-200">
+    {{ loadErrorMessage() }}
+  </div>
+  }
+
+  <!-- Gráfico -->
+  <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4 h-[380px]">
+    <canvas baseChart [type]="'bar'" [data]="barChartData()" [options]="barChartOptions"></canvas>
+  </div>
+
+  <!-- Tabla -->
   <div class="rounded-lg border border-slate-800 overflow-hidden">
     <table class="w-full text-sm">
       <thead class="bg-slate-900/70 text-slate-300 border-b border-slate-800">
@@ -54,15 +99,15 @@
         </tr>
       </thead>
       <tbody>
-        @if (loading()) {
+        @if (isLoading()) {
         <tr>
           <td colspan="3" class="px-4 py-4">Cargando…</td>
         </tr>
-        } @else if (items().length === 0) {
+        } @else if (comparisonItems().length === 0) {
         <tr>
           <td colspan="3" class="px-4 py-4 text-slate-400">Sin datos</td>
         </tr>
-        } @else { @for (it of items(); track it.tipoGastoId) {
+        } @else { @for (it of comparisonItems(); track it.tipoGastoId) {
         <tr class="border-b border-slate-800">
           <td class="px-4 py-2">{{ it.tipoGastoNombre }}</td>
           <td class="px-4 py-2 text-right">{{ it.presupuestado | number : '1.2-2' }}</td>

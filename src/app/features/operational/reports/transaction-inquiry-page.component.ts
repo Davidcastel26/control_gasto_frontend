@@ -1,15 +1,15 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
-import { ApiResponse } from '../../../core/interfaces/api-response';
 
+// Respuesta del endpoint /api/Reportes/movimientos (array plano)
 type MovimientoItemDto = {
-  tipo: number; // 0=Gasto, 1=Deposito
-  fecha: string;
+  tipo: number; // 0 = Gasto, 1 = Deposito
+  fecha: string; // ISO o yyyy-MM-dd
   fondoMonetarioId: number;
   descripcion: string | null;
-  montoTotal: number;
+  montoTotal: number; // positivo siempre (gasto/deposito)
 };
 
 @Component({
@@ -19,40 +19,92 @@ type MovimientoItemDto = {
   templateUrl: './transaction-inquiry-page.component.html',
 })
 export class TransactionInquiryPageComponent {
-  private api = inject(ApiService);
-  private fb = inject(NonNullableFormBuilder);
+  // DI
+  private apiService = inject(ApiService);
+  private formBuilder = inject(NonNullableFormBuilder);
 
-  loading = signal(false);
-  items = signal<MovimientoItemDto[]>([]);
+  // Estado
+  isLoading = signal(false);
+  movementItems = signal<MovimientoItemDto[]>([]);
+  loadErrorMessage = signal<string | null>(null);
 
+  // Rango por defecto (mes actual)
   private today = new Date();
-  private first = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
-  private last = new Date(this.today.getFullYear(), this.today.getMonth() + 1, 0);
+  private monthStart = new Date(this.today.getFullYear(), this.today.getMonth(), 1);
+  private monthEnd = new Date(this.today.getFullYear(), this.today.getMonth() + 1, 0);
 
-  form = this.fb.group({
-    desde: this.fb.control<string>(this.toInputDate(this.first), { validators: [Validators.required] }),
-    hasta: this.fb.control<string>(this.toInputDate(this.last), { validators: [Validators.required] }),
+  // Form
+  filterForm = this.formBuilder.group({
+    desde: this.formBuilder.control<string>(this.toInputDate(this.monthStart), {
+      validators: [Validators.required],
+    }),
+    hasta: this.formBuilder.control<string>(this.toInputDate(this.monthEnd), {
+      validators: [Validators.required],
+    }),
   });
 
-  ngOnInit() { this.load(); }
+  // Totales (computeds)
+  totalDeposits = computed(() =>
+    this.movementItems()
+      .filter((m) => m.tipo === 1)
+      .reduce((acc, it) => acc + it.montoTotal, 0)
+  );
 
-  load() {
-    if (this.form.invalid) return;
-    this.loading.set(true);
-    const { desde, hasta } = this.form.getRawValue();
-    const params = {
+  totalExpenses = computed(() =>
+    this.movementItems()
+      .filter((m) => m.tipo === 0)
+      .reduce((acc, it) => acc + it.montoTotal, 0)
+  );
+
+  netBalance = computed(() => this.totalDeposits() - this.totalExpenses());
+
+  ngOnInit() {
+    this.load();
+  }
+
+  load(): void {
+    if (this.filterForm.invalid) return;
+    this.isLoading.set(true);
+    this.loadErrorMessage.set(null);
+
+    const { desde, hasta } = this.filterForm.getRawValue();
+
+    // Enviamos ISO para evitar problemas de zona horaria; tu backend ya maneja rango inclusivo/exclusivo
+    const queryParams = {
       desde: new Date(desde!).toISOString(),
       hasta: new Date(hasta!).toISOString(),
     };
-    this.api.get<ApiResponse<MovimientoItemDto[]>>('api/Reportes/movimientos', { params })
+
+    this.apiService
+      .get<MovimientoItemDto[]>('api/Reportes/movimientos', { params: queryParams })
       .subscribe({
-        next: res => this.items.set(res.data ?? []),
-        error: () => this.items.set([]),
-        complete: () => this.loading.set(false),
+        next: (data) => {
+          this.movementItems.set(Array.isArray(data) ? data : []);
+        },
+        error: (err) => {
+          console.error('Error cargando movimientos:', err);
+          this.movementItems.set([]);
+          // Mensaje amigable
+          this.loadErrorMessage.set(
+            typeof err?.error === 'string'
+              ? err.error
+              : err?.error?.title || err?.message || 'No se pudo cargar la información.'
+          );
+        },
+        complete: () => this.isLoading.set(false),
       });
   }
 
-  private toInputDate(d: Date) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  // Helpers
+  trackByMovement = (_: number, item: MovimientoItemDto) =>
+    `${item.tipo}|${item.fecha}|${item.fondoMonetarioId}|${item.descripcion ?? ''}|${
+      item.montoTotal
+    }`;
+
+  private toInputDate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 }
