@@ -1,146 +1,130 @@
 <section class="space-y-6">
-  <header>
-    <h2 class="text-xl font-semibold">Registros de gastos</h2>
-    <p class="text-sm text-slate-400">Encabezado + detalle, con validación de sobregiro.</p>
+  <header class="flex items-center justify-between">
+    <h2 class="text-xl font-semibold">Nuevo gasto (rápido)</h2>
+    <button type="button" class="px-3 py-2 rounded-md bg-slate-800 text-sm" (click)="resetForm()">
+      Limpiar
+    </button>
   </header>
 
-  <!-- Form -->
-  <form [formGroup]="form" class="space-y-4" (ngSubmit)="save()">
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-      <div>
-        <label class="block text-sm mb-1">Fecha</label>
-        <input
-          type="date"
-          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-          formControlName="fecha"
-        />
-      </div>
-
-      <div class="md:col-span-2">
-        <label class="block text-sm mb-1">Fondo Monetario</label>
-        <select
-          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-          formControlName="fondoMonetarioId"
-        >
-          <option [ngValue]="null">Seleccione…</option>
-          @for (f of fondos(); track f.id) {
-          <option [ngValue]="f.id">{{ f.nombre }}</option>
-          }
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-sm mb-1">Tipo de documento</label>
-        <select
-          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-          formControlName="tipoDocumento"
-        >
-          <option value="Factura">Factura</option>
-          <option value="Comprobante">Comprobante</option>
-          <option value="Otro">Otro</option>
-        </select>
-      </div>
-
-      <div>
-        <label class="block text-sm mb-1">Usuario (opcional)</label>
-        <input
-          type="number"
-          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-          formControlName="usuarioId"
-          placeholder="Ej: 1"
-        />
-      </div>
-
-      <div class="md:col-span-2">
-        <label class="block text-sm mb-1">Nombre de comercio</label>
-        <input
-          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-          formControlName="nombreComercio"
-          placeholder="Ej: Supermercado"
-        />
-      </div>
-
-      <div class="md:col-span-3">
-        <label class="block text-sm mb-1">Observaciones</label>
-        <input
-          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-          formControlName="observaciones"
-          placeholder="Opcional"
-        />
-      </div>
+  <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-3 gap-4" (ngSubmit)="onSubmit()">
+    <!-- Fecha -->
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Fecha</label>
+      <input
+        type="date"
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="fecha"
+      />
     </div>
 
-    <!-- Detalles -->
-    <div class="rounded-lg border border-slate-800 overflow-hidden">
-      <table class="w-full text-sm">
-        <thead class="bg-slate-900/70 text-slate-300 border-b border-slate-800">
-          <tr>
-            <th class="text-left px-4 py-2 w-1/2">Tipo de Gasto</th>
-            <th class="text-right px-4 py-2 w-1/3">Monto</th>
-            <th class="text-right px-4 py-2 w-1/6">Acciones</th>
-          </tr>
-        </thead>
-        <tbody formArrayName="detalles">
-          @for (d of detalles.controls; track d; let i = $index) {
-          <tr class="border-b border-slate-800" [formGroupName]="i">
-            <td class="px-4 py-2">
-              <select
-                class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-                formControlName="tipoGastoId"
-              >
-                <option [ngValue]="null">Seleccione…</option>
-                @for (t of tipos(); track t.id) {
-                <option [ngValue]="t.id">{{ t.nombre }}</option>
-                }
-              </select>
-            </td>
-            <td class="px-4 py-2">
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                class="w-full text-right rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
-                formControlName="monto"
-              />
-            </td>
-            <td class="px-4 py-2 text-right">
-              <button
-                type="button"
-                class="px-2 py-1 rounded-md bg-rose-700 hover:bg-rose-600"
-                (click)="removeDetail(i)"
-              >
-                Eliminar
-              </button>
-            </td>
-          </tr>
-          }
-        </tbody>
-      </table>
+    <!-- Fondo Monetario -->
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Fondo Monetario</label>
+      <select
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="fondoMonetarioId"
+      >
+        <option [ngValue]="null" disabled>Seleccione…</option>
+        @for (f of funds(); track f.id) {
+        <option [ngValue]="f.id">{{ f.nombre }}</option>
+        }
+      </select>
     </div>
 
-    <div class="flex items-center justify-between">
-      <button type="button" class="px-3 py-2 rounded-md bg-slate-800 text-sm" (click)="addDetail()">
-        + Agregar línea
-      </button>
-      <div class="text-sm">
-        <span class="text-slate-400 mr-2">Total</span>
-        <span class="font-semibold">{{ total() | number : '1.2-2' }}</span>
-      </div>
+    <!-- Tipo Documento -->
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Tipo de documento</label>
+      <select
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="tipoDocumento"
+      >
+        <option value="Factura">Factura</option>
+        <option value="Comprobante">Comprobante</option>
+        <option value="Otro">Otro</option>
+      </select>
+    </div>
+
+    <!-- Usuario -->
+    <div>
+      <label class="block text-sm text-slate-300 mb-1">Usuario (opcional)</label>
+      <input
+        type="number"
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="usuarioId"
+        placeholder="Ej: 1"
+      />
+    </div>
+
+    <!-- Comercio -->
+    <div class="md:col-span-2">
+      <label class="block text-sm text-slate-300 mb-1">Nombre de comercio</label>
+      <input
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="nombreComercio"
+        placeholder="Ej: Supermercado"
+      />
+    </div>
+
+    <!-- Observaciones -->
+    <div class="md:col-span-3">
+      <label class="block text-sm text-slate-300 mb-1">Observaciones (opcional)</label>
+      <input
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="observaciones"
+        placeholder="Opcional"
+      />
+    </div>
+
+    <!-- DETALLE ÚNICO (lo que exige tu payload) -->
+    <div class="md:col-span-2">
+      <label class="block text-sm text-slate-300 mb-1">Tipo de Gasto</label>
+      <select
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="tipoGastoId"
+      >
+        <option [ngValue]="null" disabled>Seleccione…</option>
+        @for (tg of expenseTypes(); track tg.id) {
+        <option [ngValue]="tg.id">{{ tg.nombre }}</option>
+        }
+      </select>
     </div>
 
     <div>
+      <label class="block text-sm text-slate-300 mb-1">Monto</label>
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        class="w-full text-right rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="monto"
+        placeholder="0.00"
+      />
+    </div>
+
+    <!-- ACCIONES -->
+    <div class="md:col-span-3 flex items-center justify-between pt-2">
+      <div class="text-sm text-slate-400">
+        Total a registrar:
+        <span class="font-semibold text-slate-100">{{
+          form.value.monto || 0 | number : '1.2-2'
+        }}</span>
+      </div>
+
       <button
         type="submit"
         class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
         [disabled]="form.invalid || saving()"
       >
-        Guardar
+        Guardar gasto
       </button>
-      @if (saving()) { <span class="ml-2 text-xs text-slate-400">Guardando…</span> }
     </div>
+
+    @if (saving()) {
+    <div class="md:col-span-3 text-xs text-slate-400">Guardando…</div>
+    }
   </form>
 
-  <!-- Sobregiros -->
+  <!-- Alertas de sobregiro -->
   @if (lastOverdrafts().length > 0) {
   <div class="rounded-md border border-amber-600/40 bg-amber-900/20 p-4">
     <h3 class="font-medium text-amber-300 mb-2">Alerta de sobregiros</h3>

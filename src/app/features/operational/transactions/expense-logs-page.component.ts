@@ -1,13 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, NonNullableFormBuilder, Validators, FormArray } from '@angular/forms';
+import { ReactiveFormsModule, NonNullableFormBuilder, Validators } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
 import { ApiResponse } from '../../../core/interfaces/api-response';
 
-type TipoGasto = { id: number; codigo: string; nombre: string; descripcion?: string | null };
-type FondoMonetario = { id: number; nombre: string; tipoFondo: string; numeroCuenta?: string | null; descripcion?: string | null };
+/** Catálogos mínimos */
+type TipoGasto = { id: number; nombre: string };
+type FondoMonetario = { id: number; nombre: string };
 
-type GastoDetalleCreateDto = { tipoGastoId: number; monto: number };
+/** Respuesta de guardado (del backend) */
 type GastoSaveResult = {
   gastoEncabezadoId: number;
   guardado: boolean;
@@ -21,118 +22,177 @@ type GastoSaveResult = {
   }[];
 };
 
+/** Payload exacto que espera /api/Gastos */
+type GastoCreateRequest = {
+  fecha: string; // "2025-11-22" o ISO
+  fondoMonetarioId: number;
+  observaciones: string | null;
+  nombreComercio: string;
+  tipoDocumento: 'Factura' | 'Comprobante' | 'Otro';
+  usuarioId: number | null;
+  detalles: { tipoGastoId: number; monto: number }[];
+};
+
 @Component({
   standalone: true,
-  selector: 'app-expense-logs-page',
+  selector: 'app-budget-by-type-page',
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './expense-logs-page.component.html'
+  templateUrl: './expense-logs-page.component.html',
 })
 export class ExpenseLogsPageComponent {
   private api = inject(ApiService);
   private fb = inject(NonNullableFormBuilder);
 
-  tipos = signal<TipoGasto[]>([]);
-  fondos = signal<FondoMonetario[]>([]);
+  // catálogos
+  expenseTypes = signal<TipoGasto[]>([]);
+  funds = signal<FondoMonetario[]>([]);
+
+  // estado
   saving = signal(false);
-  total = signal(0);
   lastOverdrafts = signal<GastoSaveResult['sobregiros']>([]);
 
+  // fecha por defecto
   private today = new Date();
+  private defaultDate = `${this.today.getFullYear()}-${String(this.today.getMonth() + 1).padStart(
+    2,
+    '0'
+  )}-${String(this.today.getDate()).padStart(2, '0')}`;
 
+  // form: un solo detalle (como pediste)
   form = this.fb.group({
-    fecha: this.fb.control<string>(this.toInputDate(this.today), { validators: [Validators.required] }),
+    fecha: this.fb.control<string>(this.defaultDate, { validators: [Validators.required] }),
     fondoMonetarioId: this.fb.control<number | null>(null, { validators: [Validators.required] }),
-    observaciones: this.fb.control<string>(''),
-    nombreComercio: this.fb.control<string>('', { validators: [Validators.required, Validators.minLength(2)] }),
-    tipoDocumento: this.fb.control<'Factura' | 'Comprobante' | 'Otro'>('Factura', { validators: [Validators.required] }),
+    tipoDocumento: this.fb.control<'Factura' | 'Comprobante' | 'Otro'>('Factura', {
+      validators: [Validators.required],
+    }),
     usuarioId: this.fb.control<number | null>(null),
-    detalles: this.fb.array(this.createDetailArray(1), { validators: [Validators.required] })
+    nombreComercio: this.fb.control<string>('', {
+      validators: [Validators.required, Validators.minLength(2)],
+    }),
+    observaciones: this.fb.control<string | null>(null),
+
+    // detalle único
+    tipoGastoId: this.fb.control<number | null>(null, { validators: [Validators.required] }),
+    monto: this.fb.control<number | null>(null, {
+      validators: [Validators.required, Validators.min(0.01)],
+    }),
   });
 
-  get detalles() { return this.form.controls.detalles as FormArray; }
-
-  ngOnInit() {
-    this.loadCombos();
-    this.recalcTotal();
+  constructor() {
+    this.loadExpenseTypes();
+    this.loadFunds();
   }
 
-  private loadCombos() {
-    this.api.get<ApiResponse<TipoGasto[]>>('api/TipoGasto')
-      .subscribe({ next: r => this.tipos.set(r.data ?? []) });
-
-    this.api.get<ApiResponse<FondoMonetario[]>>('api/FondoMonetario')
-      .subscribe({ next: r => this.fondos.set(r.data ?? []) });
+  // Helpers para tolerar ApiResponse<T> o T directo
+  private pickArrayData<T>(res: ApiResponse<T[]> | T[]): T[] {
+    return Array.isArray(res) ? res : res?.data ?? [];
+  }
+  private pickItemData<T>(res: ApiResponse<T> | T): T {
+    return (res as any)?.data ?? (res as any);
   }
 
-  addDetail() {
-    this.detalles.push(this.createDetailGroup());
-    this.recalcTotal();
-  }
-  removeDetail(i: number) {
-    this.detalles.removeAt(i);
-    this.recalcTotal();
-  }
-
-  private recalcTotal() {
-    const compute = () =>
-      this.detalles.controls
-        .map(g => Number(g.get('monto')?.value || 0))
-        .reduce((a, b) => a + b, 0);
-    // pequeña desincronización para esperar cambios del form
-    queueMicrotask(() => this.total.set(compute()));
-  }
-
-  save() {
-    if (this.form.invalid) return;
-
-    const v = this.form.getRawValue();
-    const payload = {
-      fecha: new Date(v.fecha!).toISOString(),
-      fondoMonetarioId: v.fondoMonetarioId!,
-      observaciones: v.observaciones || null,
-      nombreComercio: v.nombreComercio!,
-      tipoDocumento: v.tipoDocumento!,  // "Factura" | "Comprobante" | "Otro"
-      usuarioId: v.usuarioId,
-      detalles: (v.detalles as any[]).map(d => ({ tipoGastoId: Number(d.tipoGastoId), monto: Number(d.monto) })) as GastoDetalleCreateDto[]
-    };
-
-    this.saving.set(true);
-    this.api.post<ApiResponse<GastoSaveResult>>('api/Gastos', payload)
-      .subscribe({
-        next: res => {
-          const data = res.data!;
-          this.lastOverdrafts.set(data.sobregiros ?? []);
-          // Reset al formulario, dejando una fila
-          this.form.reset({
-            fecha: this.toInputDate(this.today),
-            fondoMonetarioId: null,
-            observaciones: '',
-            nombreComercio: '',
-            tipoDocumento: 'Factura',
-            usuarioId: null
-          });
-          this.form.setControl('detalles', this.fb.array(this.createDetailArray(1)));
-          this.recalcTotal();
-          // TODO: toast/alert OK
-        },
-        error: _ => {
-          // TODO: notificar error
-        },
-        complete: () => this.saving.set(false)
-      });
-  }
-
-  private createDetailArray(n: number) {
-    return Array.from({ length: n }, () => this.createDetailGroup());
-  }
-  private createDetailGroup() {
-    return this.fb.group({
-      tipoGastoId: this.fb.control<number | null>(null, { validators: [Validators.required] }),
-      monto: this.fb.control<number | null>(0, { validators: [Validators.required, Validators.min(0.01)] })
+  // Cargar catálogos
+  loadExpenseTypes() {
+    console.log('[GASTO-QUICK] GET api/TipoGasto');
+    this.api.get<ApiResponse<TipoGasto[]> | TipoGasto[]>('api/TipoGasto').subscribe({
+      next: (res) => {
+        const list = this.pickArrayData(res);
+        this.expenseTypes.set(list);
+        console.log('[GASTO-QUICK] tipos OK:', list);
+      },
+      error: (err) => {
+        console.error('[GASTO-QUICK] tipos ERROR:', err);
+        this.expenseTypes.set([]);
+      },
     });
   }
 
-  private toInputDate(d: Date) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  loadFunds() {
+    console.log('[GASTO-QUICK] GET api/FondoMonetario');
+    this.api.get<ApiResponse<FondoMonetario[]> | FondoMonetario[]>('api/FondoMonetario').subscribe({
+      next: (res) => {
+        const list = this.pickArrayData(res);
+        this.funds.set(list);
+        console.log('[GASTO-QUICK] fondos OK:', list);
+        // seleccionar el primero si hay
+        if (!this.form.value.fondoMonetarioId && list.length > 0) {
+          this.form.patchValue({ fondoMonetarioId: list[0].id }, { emitEvent: false });
+        }
+      },
+      error: (err) => {
+        console.error('[GASTO-QUICK] fondos ERROR:', err);
+        this.funds.set([]);
+      },
+    });
+  }
+
+  // Acciones
+  resetForm() {
+    this.form.reset({
+      fecha: this.defaultDate,
+      fondoMonetarioId: this.funds()?.[0]?.id ?? null,
+      tipoDocumento: 'Factura',
+      usuarioId: null,
+      nombreComercio: '',
+      observaciones: null,
+      tipoGastoId: null,
+      monto: null,
+    });
+    this.lastOverdrafts.set([]);
+  }
+
+  onSubmit() {
+    console.log(
+      '[GASTO-QUICK] submit -> valid?',
+      this.form.valid,
+      'value:',
+      this.form.getRawValue()
+    );
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const raw = this.form.getRawValue();
+
+    // construir payload EXACTO
+    const payload: GastoCreateRequest = {
+      fecha: raw.fecha!, // backend acepta "yyyy-MM-dd" o ISO. Si prefieres ISO: new Date(`${raw.fecha}T00:00:00`).toISOString()
+      fondoMonetarioId: raw.fondoMonetarioId!,
+      observaciones: raw.observaciones ?? null,
+      nombreComercio: raw.nombreComercio!,
+      tipoDocumento: raw.tipoDocumento!, // 'Factura' | 'Comprobante' | 'Otro'
+      usuarioId: raw.usuarioId ?? null,
+      detalles: [
+        {
+          tipoGastoId: raw.tipoGastoId!, // seleccionado del combo
+          monto: Number(raw.monto!), // numérico
+        },
+      ],
+    };
+
+    console.log('[GASTO-QUICK] POST api/Gastos -> payload:', payload);
+    this.saving.set(true);
+
+    this.api.post<ApiResponse<GastoSaveResult> | GastoSaveResult>('api/Gastos', payload).subscribe({
+      next: (res) => {
+        const data = this.pickItemData(res) as GastoSaveResult;
+        console.log('[GASTO-QUICK] OK:', data);
+        this.lastOverdrafts.set(data?.sobregiros ?? []);
+        alert(`Gasto #${data?.gastoEncabezadoId} guardado.`);
+        // reset suave
+        this.form.patchValue({
+          nombreComercio: '',
+          observaciones: null,
+          monto: null,
+          tipoGastoId: null,
+        });
+      },
+      error: (err) => {
+        console.error('[GASTO-QUICK] ERROR:', err);
+        alert('Error guardando el gasto. Revisa consola.');
+      },
+      complete: () => this.saving.set(false),
+    });
   }
 }
