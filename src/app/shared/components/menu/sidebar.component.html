@@ -1,0 +1,93 @@
+<aside
+  class="h-screen bg-slate-950 text-slate-50 flex flex-col border-r border-slate-800"
+  aria-label="Navegación principal de ExpenseManager"
+>
+  <!-- Brand / Header -->
+  <div class="px-6 py-5 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+      <div
+        class="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center text-sm font-semibold text-slate-100"
+      >
+        EM
+      </div>
+      <div>
+        <p class="text-sm font-semibold leading-tight">ExpenseManager</p>
+        <p class="text-xs text-slate-400">Personal Finance</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex-1 overflow-auto px-3 py-4 space-y-4 text-sm">
+    @for (section of sections(); track section.id) {
+    <div class="mt-1">
+      <!-- Header de sección -->
+      <button
+        type="button"
+        class="flex w-full items-center justify-between px-2 py-2 rounded-lg text-left text-sm font-medium text-slate-200 hover:bg-slate-900/60 transition-colors"
+        (click)="toggleSection(section.id)"
+      >
+        <div class="flex items-center gap-3">
+          <span
+            class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-900/80 border border-slate-700/60"
+          >
+            <span class="material-symbols-rounded text-base">
+              {{ section.icon }}
+            </span>
+          </span>
+          <span>{{ section.label }}</span>
+        </div>
+
+        <!-- Flecha up/down -->
+        <span
+          class="ml-2 text-slate-500 transition-transform duration-150"
+          [ngClass]="{
+            'rotate-180': isSectionOpen(section.id),
+            'rotate-0': !isSectionOpen(section.id)
+          }"
+        >
+          <span class="material-symbols-rounded text-sm">expand_more</span>
+        </span>
+      </button>
+
+      <!-- Items de sección -->
+      @if (isSectionOpen(section.id)) {
+      <ul class="mt-1 space-y-1 pl-4">
+        @for (item of section.items; track item.path) {
+        <li>
+          <a
+            [routerLink]="item.path"
+            routerLinkActive
+            #rlaItem="routerLinkActive"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border border-transparent transition-colors"
+            [ngClass]="{
+              'bg-sky-600 text-slate-50 border-sky-500 shadow-sm': rlaItem.isActive,
+              'text-slate-300 hover:bg-slate-800 hover:text-slate-50': !rlaItem.isActive
+            }"
+          >
+            <span
+              class="inline-flex h-5 w-5 items-center justify-center rounded-full"
+              [ngClass]="{
+                'bg-sky-500/80 text-slate-50': rlaItem.isActive,
+                'bg-slate-800 text-slate-400': !rlaItem.isActive
+              }"
+            >
+              <span class="material-symbols-rounded text-[16px]">
+                {{ item.icon }}
+              </span>
+            </span>
+            <span class="truncate">{{ item.label }}</span>
+          </a>
+        </li>
+        }
+      </ul>
+      }
+    </div>
+    }
+  </nav>
+
+  <!-- Footer -->
+  <div class="px-4 py-3 border-t border-slate-800 text-[11px] text-slate-500">
+    <p>© {{ year() }} ExpenseManager</p>
+  </div>
+</aside>

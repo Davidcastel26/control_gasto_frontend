@@ -1,0 +1,108 @@
+<section class="space-y-6">
+  <header class="flex items-center justify-between">
+    <h2 class="text-xl font-semibold">Tipos de Gasto</h2>
+    <button
+      class="px-3 py-2 rounded-md bg-sky-600 hover:bg-sky-500 text-sm font-medium"
+      (click)="startCreate()"
+    >
+      Nuevo tipo
+    </button>
+  </header>
+
+  <!-- Formulario -->
+  @if (isFormOpen()) {
+  <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+    <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-3 gap-4" (ngSubmit)="save()">
+      <div class="md:col-span-1">
+        <label class="block text-sm text-slate-300 mb-1">Nombre</label>
+        <input
+          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-600"
+          formControlName="nombre"
+          placeholder="Ej: Internet"
+        />
+        @if (form.controls.nombre.invalid && (form.controls.nombre.dirty ||
+        form.controls.nombre.touched)) {
+        <p class="mt-1 text-xs text-red-400">El nombre es obligatorio</p>
+        }
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-sm text-slate-300 mb-1">Descripción</label>
+        <input
+          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2 outline-none focus:ring-2 focus:ring-sky-600"
+          formControlName="descripcion"
+          placeholder="Descripción opcional"
+        />
+      </div>
+
+      <div class="md:col-span-3 flex items-center gap-2">
+        <button
+          type="submit"
+          [disabled]="form.invalid || saving()"
+          class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm"
+        >
+          {{ isEditing() ? 'Guardar cambios' : 'Crear' }}
+        </button>
+        <button
+          type="button"
+          class="px-3 py-2 rounded-md bg-slate-800 text-sm"
+          (click)="cancelForm()"
+        >
+          Cancelar
+        </button>
+
+        @if (saving()) {
+        <span class="text-xs text-slate-400">Guardando…</span>
+        }
+      </div>
+    </form>
+  </div>
+  }
+
+  <!-- Tabla -->
+  <div class="rounded-lg border border-slate-800 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/70 text-slate-300 border-b border-slate-800">
+        <tr>
+          <th class="text-left px-4 py-2">Código</th>
+          <th class="text-left px-4 py-2">Nombre</th>
+          <th class="text-left px-4 py-2">Descripción</th>
+          <th class="text-right px-4 py-2">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+        <tr>
+          <td class="px-4 py-4" colspan="4">Cargando…</td>
+        </tr>
+        } @else if (items()?.length === 0) {
+        <tr>
+          <td class="px-4 py-4" colspan="4" class="text-slate-400">Sin datos</td>
+        </tr>
+        } @else { @for (tg of items(); track tg.id) {
+        <tr class="border-b border-slate-800">
+          <td class="px-4 py-2 font-mono text-slate-300">{{ tg.codigo }}</td>
+          <td class="px-4 py-2">{{ tg.nombre }}</td>
+          <td class="px-4 py-2 text-slate-400">{{ tg.descripcion || '—' }}</td>
+          <td class="px-4 py-2">
+            <div class="flex items-center gap-2 justify-end">
+              <button
+                class="px-2 py-1 rounded-md bg-sky-700 hover:bg-sky-600"
+                (click)="startEdit(tg)"
+              >
+                Editar
+              </button>
+              <button
+                class="px-2 py-1 rounded-md bg-rose-700 hover:bg-rose-600"
+                (click)="remove(tg)"
+              >
+                Eliminar
+              </button>
+            </div>
+          </td>
+        </tr>
+        } }
+      </tbody>
+    </table>
+  </div>
+</section>

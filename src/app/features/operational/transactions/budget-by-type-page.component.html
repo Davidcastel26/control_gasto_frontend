@@ -1,0 +1,93 @@
+<section class="space-y-6">
+  <header class="flex items-center justify-between">
+    <h2 class="text-xl font-semibold">Presupuesto por tipo de gasto</h2>
+    <button
+      class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
+      (click)="save()"
+      [disabled]="form.invalid || saving()"
+      title="Guardar presupuesto"
+    >
+      Guardar
+    </button>
+  </header>
+
+  <!-- Filtros / Upsert -->
+  <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+    <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-6 gap-4" (ngSubmit)="save()">
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Año</label>
+        <input type="number"
+               class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+               formControlName="anio"
+               (change)="onFiltersChange()" />
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Mes</label>
+        <input type="number"
+               class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+               formControlName="mes"
+               min="1" max="12"
+               (change)="onFiltersChange()" />
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-sm text-slate-300 mb-1">Tipo de Gasto</label>
+        <select class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+                formControlName="tipoGastoId">
+          <option [ngValue]="null" disabled>Seleccione…</option>
+          @for (tg of expenseTypes(); track tg.id) {
+            <option [ngValue]="tg.id">{{ tg.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Usuario (opcional)</label>
+        <input type="number"
+               class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+               formControlName="usuarioId"
+               (change)="onFiltersChange()" />
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Monto Presupuestado</label>
+        <input type="number" step="0.01" min="0"
+               class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+               formControlName="montoPresupuestado" />
+      </div>
+    </form>
+  </div>
+
+  <!-- Tabla -->
+  <div class="rounded-lg border border-slate-800 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/70 text-slate-300 border-b border-slate-800">
+        <tr>
+          <th class="text-left px-4 py-2">Año</th>
+          <th class="text-left px-4 py-2">Mes</th>
+          <th class="text-left px-4 py-2">Tipo de Gasto</th>
+          <th class="text-right px-4 py-2">Monto</th>
+          <th class="text-left px-4 py-2">Usuario</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loadingList()) {
+          <tr><td colspan="5" class="px-4 py-4">Cargando…</td></tr>
+        } @else if (budgets().length === 0) {
+          <tr><td colspan="5" class="px-4 py-4 text-slate-400">Sin datos</td></tr>
+        } @else {
+          @for (p of budgets(); track p.id) {
+            <tr class="border-b border-slate-800">
+              <td class="px-4 py-2">{{ p.anio }}</td>
+              <td class="px-4 py-2">{{ p.mes }}</td>
+              <td class="px-4 py-2">{{ expenseTypeName()(p.tipoGastoId) }}</td>
+              <td class="px-4 py-2 text-right">{{ p.montoPresupuestado | number:'1.2-2' }}</td>
+              <td class="px-4 py-2">{{ p.usuarioId ?? '—' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -1,0 +1,78 @@
+<section class="space-y-6">
+  <header>
+    <h2 class="text-xl font-semibold">Depósitos</h2>
+  </header>
+
+  <!-- Formulario -->
+  <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
+    <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-4 gap-4" (ngSubmit)="save()">
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Fecha</label>
+        <input
+          type="date"
+          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+          formControlName="fecha"
+        />
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-sm text-slate-300 mb-1">Fondo Monetario</label>
+        <select
+          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+          formControlName="fondoMonetarioId"
+        >
+          <option [ngValue]="null" disabled>Seleccione…</option>
+
+          @if (loadingFunds()) {
+            <option [ngValue]="null" disabled>Cargando…</option>
+          } @else if (funds().length === 0) {
+            <option [ngValue]="null" disabled>Sin fondos</option>
+          } @else {
+            @for (f of funds(); track f.id) {
+              <!-- Usamos [ngValue] para mantener number, no string -->
+              <option [ngValue]="f.id">
+                {{ f.nombre }} {{ f.numeroCuenta ? '— ' + f.numeroCuenta : '' }}
+              </option>
+            }
+          }
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm text-slate-300 mb-1">Monto</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+          formControlName="monto"
+        />
+      </div>
+
+      <div class="md:col-span-4">
+        <button
+          type="submit"
+          [disabled]="form.invalid || saving()"
+          class="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-sm font-medium"
+        >
+          Guardar
+        </button>
+
+        @if (saving()) {
+          <span class="ml-3 text-xs text-slate-400">Guardando…</span>
+        }
+      </div>
+    </form>
+  </div>
+
+  <!-- Último guardado -->
+  @if (lastSaved()) {
+    <div class="rounded-md border border-emerald-700/40 bg-emerald-900/20 p-3 text-sm">
+      <p class="text-emerald-200">
+        ✅ Depósito #{{ lastSaved()!.id }} guardado — Fondo: {{ lastSaved()!.fondoMonetarioId }},
+        Monto: {{ lastSaved()!.monto | number:'1.2-2' }},
+        Fecha: {{ lastSaved()!.fecha | date:'yyyy-MM-dd' }}
+      </p>
+    </div>
+  }
+</section>

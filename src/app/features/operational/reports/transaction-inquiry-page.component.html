@@ -1,0 +1,74 @@
+<section class="space-y-6">
+  <header>
+    <h2 class="text-xl font-semibold">Transaction Inquiry</h2>
+    <p class="text-sm text-slate-400">Consulta de movimientos por rango de fechas.</p>
+  </header>
+
+  <form [formGroup]="form" class="grid grid-cols-1 md:grid-cols-4 gap-4" (ngSubmit)="load()">
+    <div>
+      <label class="block text-sm mb-1">Desde</label>
+      <input
+        type="date"
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="desde"
+      />
+    </div>
+    <div>
+      <label class="block text-sm mb-1">Hasta</label>
+      <input
+        type="date"
+        class="w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2"
+        formControlName="hasta"
+      />
+    </div>
+    <div class="flex items-end">
+      <button
+        type="submit"
+        class="px-3 py-2 rounded-md bg-sky-600 hover:bg-sky-500 text-sm font-medium"
+        [disabled]="form.invalid || loading()"
+      >
+        Buscar
+      </button>
+    </div>
+  </form>
+
+  <div class="rounded-lg border border-slate-800 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-900/70 text-slate-300 border-b border-slate-800">
+        <tr>
+          <th class="text-left px-4 py-2">Fecha</th>
+          <th class="text-left px-4 py-2">Tipo</th>
+          <th class="text-left px-4 py-2">Descripción</th>
+          <th class="text-right px-4 py-2">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+        <tr>
+          <td colspan="4" class="px-4 py-4">Cargando…</td>
+        </tr>
+        } @else if (items().length === 0) {
+        <tr>
+          <td colspan="4" class="px-4 py-4 text-slate-400">Sin datos</td>
+        </tr>
+        } @else { @for (m of items(); track m.fecha + m.descripcion) {
+        <tr class="border-b border-slate-800">
+          <td class="px-4 py-2">{{ m.fecha | date : 'yyyy-MM-dd' }}</td>
+          <td class="px-4 py-2">
+            <span
+              class="px-2 py-0.5 rounded text-xs"
+              [ngClass]="
+                m.tipo === 1 ? 'bg-emerald-700/40 text-emerald-200' : 'bg-rose-700/40 text-rose-200'
+              "
+            >
+              {{ m.tipo === 1 ? 'Depósito' : 'Gasto' }}
+            </span>
+          </td>
+          <td class="px-4 py-2">{{ m.descripcion || '—' }}</td>
+          <td class="px-4 py-2 text-right">{{ m.montoTotal | number : '1.2-2' }}</td>
+        </tr>
+        } }
+      </tbody>
+    </table>
+  </div>
+</section>
